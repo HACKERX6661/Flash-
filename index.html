@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>TTGO T-Display GIF Studio</title>
-    <!-- Zuverlässiger CDN-Pfad für das esptool-js Bundle -->
-    <script src="https://unpkg.com/esptool-js@0.5.2/bundle.js"></script>
+    <!-- Lädt das esptool und triggert danach automatisch die Freigabe -->
+    <script src="https://unpkg.com/esptool-js@0.5.2/bundle.js" onload="initTool()"></script>
     <style>
         body { background: #0f172a; color: #f8fafc; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
         .card { background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 450px; text-align: center; }
@@ -21,11 +21,11 @@
         <h2>TTGO T-Display GIF Studio</h2>
         <p style="color: #94a3b8; font-size: 14px;">WLAN-freier Direct Flasher</p>
         
-        <button id="connectBtn">1. ESP32 Verbinden</button>
+        <button id="connectBtn" disabled>Lade Bibliothek...</button>
         <input type="file" id="gifFile" accept=".gif">
         <button id="flashBtn" disabled>2. Speicher löschen & GIF aufspielen</button>
 
-        <div id="console">Warte auf Verbindung...</div>
+        <div id="console">Warte bis Bibliothek geladen ist...</div>
     </div>
 
     <script>
@@ -44,17 +44,34 @@
             consoleDiv.scrollTop = consoleDiv.scrollHeight;
         }
 
+        function initTool() {
+            log("Bibliothek bereit.");
+            connectBtn.disabled = false;
+            connectBtn.innerText = "1. ESP32 Verbinden";
+        }
+
+        // Fallback falls das Laden extrem schnell ging
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (connectBtn.disabled && (window.ESPLoader || window.esptooljs)) {
+                    initTool();
+                }
+            }, 500);
+        });
+
         connectBtn.addEventListener('click', async () => {
             try {
-                // Zugriff auf das globale Objekt von esptool-js v0.5.2
-                if (typeof ESPLoader === 'undefined' || typeof Transport === 'undefined') {
-                    throw new Error("Bibliothek lädt noch. Bitte kurz neu laden.");
+                const LoaderClass = window.ESPLoader || (window.esptooljs && window.esptooljs.ESPLoader);
+                const TransportClass = window.Transport || (window.esptooljs && window.esptooljs.Transport);
+
+                if (!LoaderClass || !TransportClass) {
+                    throw new Error("ESPLoader noch nicht bereit. Bitte Seite neu laden.");
                 }
 
                 port = await navigator.serial.requestPort();
-                transport = new Transport(port);
+                transport = new TransportClass(port);
                 
-                esptool = new ESPLoader({
+                esptool = new LoaderClass({
                     transport: transport,
                     baudrate: 921600,
                     romBaudrate: 115200,
