@@ -3,27 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <title>TTGO T-Display GIF Studio - Clean Flasher</title>
-    <script src="https://unpkg.com/esptool-js@0.5.2/bundle.js"></script>
+    <!-- Richtiger Bundle-Import der ESPJS Library -->
+    <script src="https://unpkg.com/esptool-js@0.4.3/bundle.js"></script>
     <style>
         body { background: #0f172a; color: #f8fafc; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .card { background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 400px; text-align: center; }
-        button { background: #3b82f6; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; margin: 10px 0; width: 100%; }
+        .card { background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 450px; text-align: center; }
+        button { background: #3b82f6; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; margin: 10px 0; width: 100%; font-weight: bold; }
         button:hover { background: #2563eb; }
-        input[type="file"] { margin: 15px 0; width: 100%; }
-        #console { background: #000; color: #0f0; font-family: monospace; padding: 10px; height: 150px; overflow-y: auto; text-align: left; font-size: 12px; border-radius: 4px; margin-top: 15px; }
+        button:disabled { background: #475569; cursor: not-allowed; }
+        input[type="file"] { margin: 15px 0; width: 100%; color: #94a3b8; }
+        #console { background: #000; color: #4ade80; font-family: monospace; padding: 12px; height: 160px; overflow-y: auto; text-align: left; font-size: 12px; border-radius: 6px; margin-top: 15px; border: 1px solid #334155; }
     </style>
 </head>
 <body>
 
     <div class="card">
         <h2>TTGO T-Display GIF Studio</h2>
-        <p>WLAN-freier direkter GIF-Flasher</p>
+        <p style="color: #94a3b8; font-size: 14px;">Sauberer Flasher (Ohne WLAN / Kein YOUR_SSID)</p>
         
         <button id="connectBtn">1. ESP32 Verbinden</button>
-        
         <input type="file" id="gifFile" accept=".gif">
-        
-        <button id="flashBtn" disabled>2. Speicher löschen & GIF flashen</button>
+        <button id="flashBtn" disabled>2. Flash löschen & GIF aufspielen</button>
 
         <div id="console">Warte auf Verbindung...</div>
     </div>
@@ -46,23 +46,30 @@
 
         connectBtn.addEventListener('click', async () => {
             try {
+                // Einlesen aus dem esptooljs Objekt des Bundles
+                const ESPLoader = esptooljs.ESPLoader;
+                const Transport = esptooljs.Transport;
+
                 port = await navigator.serial.requestPort();
-                transport = new ESPWebSerialTransport(port);
+                transport = new Transport(port);
+                
                 esptool = new ESPLoader({
                     transport: transport,
                     baudrate: 921600,
                     romBaudrate: 115200,
-                    logger: {
-                        log: log,
-                        debug: log,
-                        error: log
+                    terminal: {
+                        clean: () => { consoleDiv.innerHTML = ""; },
+                        writeLine: (data) => log(data),
+                        write: (data) => log(data)
                     }
                 });
 
+                log("Verbinde mit ESP32...");
                 await esptool.connect();
                 log("ESP32 erfolgreich verbunden!");
                 connectBtn.style.backgroundColor = "#22c55e";
-                connectBtn.innerText = "Verbunden";
+                connectBtn.innerText = "ESP32 Verbunden";
+                
                 if (selectedFile) flashBtn.disabled = false;
             } catch (e) {
                 log("Verbindungsfehler: " + e.message);
@@ -71,30 +78,32 @@
 
         gifInput.addEventListener('change', (e) => {
             selectedFile = e.target.files[0];
-            if (selectedFile && port) {
+            if (selectedFile && esptool) {
                 flashBtn.disabled = false;
             }
-            log("GIF geladen: " + selectedFile.name);
+            if (selectedFile) {
+                log("GIF ausgewählt: " + selectedFile.name);
+            }
         });
 
         flashBtn.addEventListener('click', async () => {
             if (!selectedFile) return;
             flashBtn.disabled = true;
             try {
-                log("=== Starte Flash-Vorgang ===");
+                log("=== Starte Flash-Prozess ===");
                 
-                // SCHRITT 1: Komplettes Löschen des Speichers (Radiert jeden alten WLAN-Müll aus)
-                log("Lösche Flash-Speicher vollständig (Full Memory Erase)...");
+                // 1. VOLLSTÄNDIGES LÖSCHEN (Entfernt den alten WLAN-Müll komplett aus dem Flash NVS)
+                log("Lösche gesamten Flash-Speicher...");
                 await esptool.eraseFlash();
-                log("Speicher erfolgreich geleert!");
+                log("Speicher vollständig gelöscht!");
 
-                // SCHRITT 2: GIF-Daten einlesen
+                // 2. GIF-Datei als Bytes einlesen
                 const buffer = await selectedFile.arrayBuffer();
-                const binaryData = new Uint8Array(buffer);
+                const gifBytes = new Uint8Array(buffer);
 
-                // SCHRITT 3: Schreiben an die Startadresse (0x10000) ohne WLAN-Routinen
-                log("Schreibe sauberen Payload auf ESP32...");
-                const fileArray = [{ data: binaryData, address: 0x10000 }];
+                // 3. Schreiben auf Adresse 0x10000
+                log("Schreibe GIF Payload...");
+                const fileArray = [{ data: gifBytes, address: 0x10000 }];
 
                 await esptool.writeFlash({
                     fileArray: fileArray,
@@ -103,18 +112,18 @@
                     flashFreq: "40m",
                     reportProgress: (fileIndex, written, total) => {
                         let progress = Math.floor((written / total) * 100);
-                        if (progress % 20 === 0) {
+                        if (progress % 25 === 0) {
                             log(`Fortschritt: ${progress}%`);
                         }
                     }
                 });
 
-                log("Flash erfolgreich abgeschlossen! Führe Neustart aus...");
+                log("Flash erfolgreich! Starte ESP32 neu...");
                 await esptool.hardReset();
-                log("Dein GIF läuft jetzt in der Endlosschleife!");
+                log("Fertig! ESP32 läuft ohne WLAN.");
 
             } catch (e) {
-                log("Fehler beim Flashen: " + e.message);
+                log("Fehler: " + e.message);
             } finally {
                 flashBtn.disabled = false;
             }
