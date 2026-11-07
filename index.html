@@ -2,9 +2,12 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>TTGO T-Display GIF Studio - Clean Flasher</title>
-    <!-- Richtiger Bundle-Import der ESPJS Library -->
-    <script src="https://unpkg.com/esptool-js@0.4.3/bundle.js"></script>
+    <title>TTGO T-Display GIF Studio</title>
+    <script type="module">
+        import { ESPLoader, Transport } from "https://unpkg.com/esptool-js@0.4.3/lib/index.js";
+        window.ESPLoader = ESPLoader;
+        window.Transport = Transport;
+    </script>
     <style>
         body { background: #0f172a; color: #f8fafc; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
         .card { background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 450px; text-align: center; }
@@ -19,11 +22,11 @@
 
     <div class="card">
         <h2>TTGO T-Display GIF Studio</h2>
-        <p style="color: #94a3b8; font-size: 14px;">Sauberer Flasher (Ohne WLAN / Kein YOUR_SSID)</p>
+        <p style="color: #94a3b8; font-size: 14px;">WLAN-freier Direct Flasher</p>
         
         <button id="connectBtn">1. ESP32 Verbinden</button>
         <input type="file" id="gifFile" accept=".gif">
-        <button id="flashBtn" disabled>2. Flash löschen & GIF aufspielen</button>
+        <button id="flashBtn" disabled>2. Speicher löschen & GIF aufspielen</button>
 
         <div id="console">Warte auf Verbindung...</div>
     </div>
@@ -46,14 +49,14 @@
 
         connectBtn.addEventListener('click', async () => {
             try {
-                // Einlesen aus dem esptooljs Objekt des Bundles
-                const ESPLoader = esptooljs.ESPLoader;
-                const Transport = esptooljs.Transport;
+                if (!window.ESPLoader || !window.Transport) {
+                    throw new Error("Library lädt noch... Bitte 2 Sekunden warten und erneut klicken.");
+                }
 
                 port = await navigator.serial.requestPort();
-                transport = new Transport(port);
+                transport = new window.Transport(port);
                 
-                esptool = new ESPLoader({
+                esptool = new window.ESPLoader({
                     transport: transport,
                     baudrate: 921600,
                     romBaudrate: 115200,
@@ -92,16 +95,13 @@
             try {
                 log("=== Starte Flash-Prozess ===");
                 
-                // 1. VOLLSTÄNDIGES LÖSCHEN (Entfernt den alten WLAN-Müll komplett aus dem Flash NVS)
                 log("Lösche gesamten Flash-Speicher...");
                 await esptool.eraseFlash();
                 log("Speicher vollständig gelöscht!");
 
-                // 2. GIF-Datei als Bytes einlesen
                 const buffer = await selectedFile.arrayBuffer();
                 const gifBytes = new Uint8Array(buffer);
 
-                // 3. Schreiben auf Adresse 0x10000
                 log("Schreibe GIF Payload...");
                 const fileArray = [{ data: gifBytes, address: 0x10000 }];
 
@@ -120,7 +120,7 @@
 
                 log("Flash erfolgreich! Starte ESP32 neu...");
                 await esptool.hardReset();
-                log("Fertig! ESP32 läuft ohne WLAN.");
+                log("Fertig!");
 
             } catch (e) {
                 log("Fehler: " + e.message);
