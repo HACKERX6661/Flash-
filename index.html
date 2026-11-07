@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>TTGO T-Display GIF Studio</title>
-    <!-- Lädt das esptool und triggert danach automatisch die Freigabe -->
-    <script src="https://unpkg.com/esptool-js@0.5.2/bundle.js" onload="initTool()"></script>
+    <!-- Zuverlässiges jsDelivr CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/esptool-js@0.5.2/bundle.js"></script>
     <style>
         body { background: #0f172a; color: #f8fafc; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
         .card { background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 450px; text-align: center; }
@@ -21,11 +21,11 @@
         <h2>TTGO T-Display GIF Studio</h2>
         <p style="color: #94a3b8; font-size: 14px;">WLAN-freier Direct Flasher</p>
         
-        <button id="connectBtn" disabled>Lade Bibliothek...</button>
+        <button id="connectBtn">1. ESP32 Verbinden</button>
         <input type="file" id="gifFile" accept=".gif">
         <button id="flashBtn" disabled>2. Speicher löschen & GIF aufspielen</button>
 
-        <div id="console">Warte bis Bibliothek geladen ist...</div>
+        <div id="console">Bereit. Klicke auf Verbinden...</div>
     </div>
 
     <script>
@@ -44,28 +44,35 @@
             consoleDiv.scrollTop = consoleDiv.scrollHeight;
         }
 
-        function initTool() {
-            log("Bibliothek bereit.");
-            connectBtn.disabled = false;
-            connectBtn.innerText = "1. ESP32 Verbinden";
-        }
-
-        // Fallback falls das Laden extrem schnell ging
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                if (connectBtn.disabled && (window.ESPLoader || window.esptooljs)) {
-                    initTool();
-                }
-            }, 500);
+        gifInput.addEventListener('change', (e) => {
+            selectedFile = e.target.files[0];
+            if (selectedFile) {
+                log("GIF ausgewählt: " + selectedFile.name);
+                if (esptool) flashBtn.disabled = false;
+            }
         });
 
         connectBtn.addEventListener('click', async () => {
             try {
-                const LoaderClass = window.ESPLoader || (window.esptooljs && window.esptooljs.ESPLoader);
-                const TransportClass = window.Transport || (window.esptooljs && window.esptooljs.Transport);
+                let LoaderClass = window.ESPLoader || (window.esptooljs && window.esptooljs.ESPLoader);
+                let TransportClass = window.Transport || (window.esptooljs && window.esptooljs.Transport);
+
+                // Falls das Script geblockt wurde, direkt dynamisch nachladen
+                if (!LoaderClass || !TransportClass) {
+                    log("Lade Bibliothek nach...");
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = "https://cdn.jsdelivr.net/npm/esptool-js@0.5.2/bundle.js";
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                    LoaderClass = window.ESPLoader || (window.esptooljs && window.esptooljs.ESPLoader);
+                    TransportClass = window.Transport || (window.esptooljs && window.esptooljs.Transport);
+                }
 
                 if (!LoaderClass || !TransportClass) {
-                    throw new Error("ESPLoader noch nicht bereit. Bitte Seite neu laden.");
+                    throw new Error("ESPLoader konnte nicht geladen werden.");
                 }
 
                 port = await navigator.serial.requestPort();
@@ -91,16 +98,6 @@
                 if (selectedFile) flashBtn.disabled = false;
             } catch (e) {
                 log("Verbindungsfehler: " + e.message);
-            }
-        });
-
-        gifInput.addEventListener('change', (e) => {
-            selectedFile = e.target.files[0];
-            if (selectedFile && esptool) {
-                flashBtn.disabled = false;
-            }
-            if (selectedFile) {
-                log("GIF ausgewählt: " + selectedFile.name);
             }
         });
 
