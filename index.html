@@ -1,420 +1,124 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TTGO T-Display GIF Flasher & Studio</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+    <title>TTGO T-Display GIF Studio - Clean Flasher</title>
+    <script src="https://unpkg.com/esptool-js@0.5.2/bundle.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .code-font { font-family: 'JetBrains Mono', monospace; }
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        body { background: #0f172a; color: #f8fafc; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .card { background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 400px; text-align: center; }
+        button { background: #3b82f6; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; margin: 10px 0; width: 100%; }
+        button:hover { background: #2563eb; }
+        input[type="file"] { margin: 15px 0; width: 100%; }
+        #console { background: #000; color: #0f0; font-family: monospace; padding: 10px; height: 150px; overflow-y: auto; text-align: left; font-size: 12px; border-radius: 4px; margin-top: 15px; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-cyan-500 selection:text-slate-950">
+<body>
 
-    <!-- Header Navigation -->
-    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
-        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-9 h-9 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                    <i class="fa-solid fa-bolt text-slate-950 text-lg"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold text-lg leading-tight bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">TTGO T-Display GIF Studio</h1>
-                    <p class="text-xs text-slate-400">WebSerial ESP32 GIF Flasher (ST7789 240×135)</p>
-                </div>
-            </div>
-
-            <!-- Serial Connection Badge -->
-            <div class="flex items-center space-x-3">
-                <div id="connectionStatusBadge" class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-slate-800 text-xs text-slate-400 border border-slate-700">
-                    <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse" id="statusDot"></span>
-                    <span id="statusText">Disconnected</span>
-                </div>
-                <button id="connectBtn" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-semibold text-sm rounded-lg transition-all shadow-md shadow-cyan-500/20 active:scale-95 flex items-center space-x-2">
-                    <i class="fa-solid fa-plug"></i>
-                    <span id="connectBtnLabel">Connect ESP32</span>
-                </button>
-            </div>
-        </div>
-    </header>
-
-    <!-- Main Content Area -->
-    <main class="max-w-6xl mx-auto px-4 py-8 flex-grow w-full grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <div class="card">
+        <h2>TTGO T-Display GIF Studio</h2>
+        <p>WLAN-freier direkter GIF-Flasher</p>
         
-        <!-- Left Column: Step 1 Upload & GIF Settings -->
-        <div class="lg:col-span-5 space-y-6">
-            
-            <!-- Step 1: Upload GIF -->
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl relative overflow-hidden">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center space-x-2">
-                        <span class="w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-bold flex items-center justify-center border border-cyan-500/30">1</span>
-                        <h2 class="font-semibold text-slate-200">Select GIF Animation</h2>
-                    </div>
-                    <span class="text-xs text-slate-500">Local GIF File</span>
-                </div>
+        <button id="connectBtn">1. ESP32 Verbinden</button>
+        
+        <input type="file" id="gifFile" accept=".gif">
+        
+        <button id="flashBtn" disabled>2. Speicher löschen & GIF flashen</button>
 
-                <!-- Dropzone -->
-                <div id="dropzone" class="border-2 border-dashed border-slate-700 hover:border-cyan-500/50 bg-slate-950/50 rounded-lg p-6 text-center cursor-pointer transition-colors group">
-                    <input type="file" id="gifInput" accept="image/gif,image/png,image/jpeg" class="hidden">
-                    <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-500 group-hover:text-cyan-400 mb-3 transition-colors"></i>
-                    <p class="text-sm font-medium text-slate-300">Click to upload or drag & drop GIF</p>
-                    <p class="text-xs text-slate-500 mt-1">Automatically resized to 240x135 px</p>
-                </div>
+        <div id="console">Warte auf Verbindung...</div>
+    </div>
 
-                <!-- Canvas Preview Box -->
-                <div id="previewContainer" class="mt-4 hidden space-y-3">
-                    <div class="flex justify-between items-center text-xs text-slate-400">
-                        <span>Preview on T-Display (240x135)</span>
-                        <span id="gifInfo" class="font-mono text-cyan-400">Ready</span>
-                    </div>
-
-                    <div class="bg-black p-3 rounded-lg border border-slate-800 flex justify-center items-center relative overflow-hidden">
-                        <div class="border-4 border-slate-800 rounded shadow-2xl relative">
-                            <canvas id="gifCanvas" width="240" height="135" class="bg-slate-950 block rounded-sm"></canvas>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3 text-xs">
-                        <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
-                            <span class="text-slate-400">Looping:</span>
-                            <span class="text-emerald-400 font-medium"><i class="fa-solid fa-arrows-rotate mr-1"></i> Infinite</span>
-                        </div>
-                        <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
-                            <span class="text-slate-400">Format:</span>
-                            <span class="text-cyan-400 font-mono">RGB565 ST7789</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Step 2: Flash Configuration -->
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-4">
-                <div class="flex items-center space-x-2">
-                    <span class="w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-bold flex items-center justify-center border border-cyan-500/30">2</span>
-                    <h2 class="font-semibold text-slate-200">Flasher Controls</h2>
-                </div>
-
-                <div class="space-y-3">
-                    <button id="eraseBtn" class="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs rounded-lg transition-all border border-slate-700 flex items-center justify-center space-x-2">
-                        <i class="fa-solid fa-trash-can text-rose-400"></i>
-                        <span>Full Memory Erase (Erase Flash)</span>
-                    </button>
-                </div>
-
-                <button id="flashBtn" disabled class="w-full py-3.5 px-4 bg-slate-800 text-slate-500 font-bold text-sm rounded-lg transition-all flex items-center justify-center space-x-2 cursor-not-allowed">
-                    <i class="fa-solid fa-microchip"></i>
-                    <span id="flashBtnText">Connect ESP32 & Select GIF First</span>
-                </button>
-            </div>
-
-        </div>
-
-        <!-- Right Column: Terminal & Flashing Monitor -->
-        <div class="lg:col-span-7 flex flex-col space-y-6">
-            
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-4">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-2">
-                        <span class="w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-bold flex items-center justify-center border border-cyan-500/30">3</span>
-                        <h2 class="font-semibold text-slate-200">Flashing Monitor</h2>
-                    </div>
-                    <span id="progressPercent" class="text-sm font-mono font-bold text-cyan-400">0%</span>
-                </div>
-
-                <div class="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800">
-                    <div id="progressBar" class="bg-gradient-to-r from-cyan-500 to-blue-500 h-full w-0 transition-all duration-200"></div>
-                </div>
-
-                <div class="grid grid-cols-4 gap-2 text-center text-xs pt-1">
-                    <div id="stepConnect" class="p-2 rounded bg-slate-950 border border-slate-800 text-slate-500">1. Connect</div>
-                    <div id="stepErase" class="p-2 rounded bg-slate-950 border border-slate-800 text-slate-500">2. Erase</div>
-                    <div id="stepWrite" class="p-2 rounded bg-slate-950 border border-slate-800 text-slate-500">3. Flash Payload</div>
-                    <div id="stepBoot" class="p-2 rounded bg-slate-950 border border-slate-800 text-slate-500">4. Auto-Boot</div>
-                </div>
-            </div>
-
-            <!-- WebSerial Terminal Console -->
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl flex-grow flex flex-col h-80 lg:h-auto overflow-hidden">
-                <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
-                    <div class="flex items-center space-x-2">
-                        <i class="fa-solid fa-terminal text-slate-400 text-xs"></i>
-                        <span class="text-xs font-medium text-slate-300">Serial Output Console</span>
-                    </div>
-                    <button id="clearConsoleBtn" class="text-xs text-slate-500 hover:text-slate-300 transition-colors">
-                        <i class="fa-solid fa-eraser mr-1"></i> Clear
-                    </button>
-                </div>
-                
-                <div id="consoleLog" class="code-font text-xs text-emerald-400 bg-slate-950/80 p-3 rounded-lg flex-grow overflow-y-auto space-y-1 border border-slate-900">
-                    <div class="text-slate-600">[System] Browser environment verified. Ready to flash TTGO T-Display over WebSerial.</div>
-                </div>
-            </div>
-
-        </div>
-
-    </main>
-
-    <!-- App Logic Script -->
     <script>
-        // DOM Elements
+        let port;
+        let transport;
+        let esptool;
+        let selectedFile = null;
+
         const connectBtn = document.getElementById('connectBtn');
-        const connectBtnLabel = document.getElementById('connectBtnLabel');
-        const connectionStatusBadge = document.getElementById('connectionStatusBadge');
-        const statusDot = document.getElementById('statusDot');
-        const statusText = document.getElementById('statusText');
-        const gifInput = document.getElementById('gifInput');
-        const dropzone = document.getElementById('dropzone');
-        const previewContainer = document.getElementById('previewContainer');
-        const gifCanvas = document.getElementById('gifCanvas');
-        const gifInfo = document.getElementById('gifInfo');
         const flashBtn = document.getElementById('flashBtn');
-        const flashBtnText = document.getElementById('flashBtnText');
-        const eraseBtn = document.getElementById('eraseBtn');
-        const progressBar = document.getElementById('progressBar');
-        const progressPercent = document.getElementById('progressPercent');
-        const consoleLog = document.getElementById('consoleLog');
-        const clearConsoleBtn = document.getElementById('clearConsoleBtn');
+        const gifInput = document.getElementById('gifFile');
+        const consoleDiv = document.getElementById('console');
 
-        const stepConnect = document.getElementById('stepConnect');
-        const stepErase = document.getElementById('stepErase');
-        const stepWrite = document.getElementById('stepWrite');
-        const stepBoot = document.getElementById('stepBoot');
-
-        // WebSerial State
-        let port = null;
-        let reader = null;
-        let writer = null;
-        let isConnected = false;
-        let hasImage = false;
-
-        // Logger Function
-        function logConsole(message, type = "info") {
-            const line = document.createElement('div');
-            const timestamp = new Date().toLocaleTimeString();
-            
-            if (type === "error") line.className = "text-rose-400";
-            else if (type === "success") line.className = "text-emerald-400 font-semibold";
-            else if (type === "warn") line.className = "text-amber-400";
-            else line.className = "text-slate-300";
-            
-            line.textContent = `[${timestamp}] ${message}`;
-            consoleLog.appendChild(line);
-            consoleLog.scrollTop = consoleLog.scrollHeight;
+        function log(text) {
+            consoleDiv.innerHTML += text + "<br>";
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
         }
 
-        clearConsoleBtn.addEventListener('click', () => {
-            consoleLog.innerHTML = '<div class="text-slate-600">[System] Console cleared.</div>';
-        });
-
-        function setStepState(element, state) {
-            element.className = "p-2 rounded text-xs transition-all border ";
-            if (state === "active") element.className += "bg-cyan-950/50 border-cyan-500 text-cyan-400 font-semibold animate-pulse";
-            else if (state === "done") element.className += "bg-emerald-950/50 border-emerald-500 text-emerald-400 font-semibold";
-            else element.className += "bg-slate-950 border-slate-800 text-slate-500";
-        }
-
-        // WebSerial Connection Handler
         connectBtn.addEventListener('click', async () => {
-            if (isConnected) {
-                await disconnectSerial();
-                return;
-            }
-
-            if (!("serial" in navigator)) {
-                logConsole("WebSerial is not supported on this browser! Please use Chrome or Edge.", "error");
-                return;
-            }
-
             try {
-                logConsole("Requesting serial port...", "info");
                 port = await navigator.serial.requestPort();
-                logConsole("Opening serial connection at 115200 baud...", "info");
-                await port.open({ baudRate: 115200 });
+                transport = new ESPWebSerialTransport(port);
+                esptool = new ESPLoader({
+                    transport: transport,
+                    baudrate: 921600,
+                    romBaudrate: 115200,
+                    logger: {
+                        log: log,
+                        debug: log,
+                        error: log
+                    }
+                });
 
-                isConnected = true;
-                statusDot.className = "w-2 h-2 rounded-full bg-emerald-400";
-                statusText.textContent = "ESP32 Connected";
-                connectionStatusBadge.className = "inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-950/60 text-xs text-emerald-400 border border-emerald-800";
-                connectBtnLabel.textContent = "Disconnect";
-                setStepState(stepConnect, "done");
-
-                logConsole("ESP32 connected successfully over WebSerial!", "success");
-                updateButtons();
-
-                // Start background reader loop
-                readLoop();
-
-            } catch (err) {
-                logConsole(`Connection failed: ${err.message}`, "error");
-                await disconnectSerial();
+                await esptool.connect();
+                log("ESP32 erfolgreich verbunden!");
+                connectBtn.style.backgroundColor = "#22c55e";
+                connectBtn.innerText = "Verbunden";
+                if (selectedFile) flashBtn.disabled = false;
+            } catch (e) {
+                log("Verbindungsfehler: " + e.message);
             }
         });
 
-        async function disconnectSerial() {
+        gifInput.addEventListener('change', (e) => {
+            selectedFile = e.target.files[0];
+            if (selectedFile && port) {
+                flashBtn.disabled = false;
+            }
+            log("GIF geladen: " + selectedFile.name);
+        });
+
+        flashBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+            flashBtn.disabled = true;
             try {
-                if (reader) {
-                    await reader.cancel().catch(() => {});
-                    reader.releaseLock();
-                    reader = null;
-                }
-                if (writer) {
-                    writer.releaseLock();
-                    writer = null;
-                }
-                if (port) {
-                    await port.close().catch(() => {});
-                    port = null;
-                }
-            } catch (e) {}
+                log("=== Starte Flash-Vorgang ===");
+                
+                // SCHRITT 1: Komplettes Löschen des Speichers (Radiert jeden alten WLAN-Müll aus)
+                log("Lösche Flash-Speicher vollständig (Full Memory Erase)...");
+                await esptool.eraseFlash();
+                log("Speicher erfolgreich geleert!");
 
-            isConnected = false;
-            statusDot.className = "w-2 h-2 rounded-full bg-rose-500 animate-pulse";
-            statusText.textContent = "Disconnected";
-            connectionStatusBadge.className = "inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-slate-800 text-xs text-slate-400 border border-slate-700";
-            connectBtnLabel.textContent = "Connect ESP32";
-            setStepState(stepConnect, "off");
+                // SCHRITT 2: GIF-Daten einlesen
+                const buffer = await selectedFile.arrayBuffer();
+                const binaryData = new Uint8Array(buffer);
 
-            updateButtons();
-            logConsole("Serial port disconnected.", "warn");
-        }
+                // SCHRITT 3: Schreiben an die Startadresse (0x10000) ohne WLAN-Routinen
+                log("Schreibe sauberen Payload auf ESP32...");
+                const fileArray = [{ data: binaryData, address: 0x10000 }];
 
-        async function readLoop() {
-            while (port && port.readable && isConnected) {
-                try {
-                    reader = port.readable.getReader();
-                    while (true) {
-                        const { value, done } = await reader.read();
-                        if (done) break;
-                        if (value) {
-                            const str = new TextDecoder().decode(value);
-                            logConsole(`[ESP Raw] ${str.trim()}`, "info");
+                await esptool.writeFlash({
+                    fileArray: fileArray,
+                    flashSize: "keep",
+                    flashMode: "dio",
+                    flashFreq: "40m",
+                    reportProgress: (fileIndex, written, total) => {
+                        let progress = Math.floor((written / total) * 100);
+                        if (progress % 20 === 0) {
+                            log(`Fortschritt: ${progress}%`);
                         }
                     }
-                } catch (err) {
-                    break;
-                } finally {
-                    if (reader) {
-                        reader.releaseLock();
-                        reader = null;
-                    }
-                }
-            }
-        }
+                });
 
-        // File Selection & Scaling
-        dropzone.addEventListener('click', () => gifInput.click());
-        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('border-cyan-500'); });
-        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('border-cyan-500'));
-        dropzone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropzone.classList.remove('border-cyan-500');
-            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
-        });
-        gifInput.addEventListener('change', (e) => {
-            if (e.target.files.length) handleFile(e.target.files[0]);
-        });
+                log("Flash erfolgreich abgeschlossen! Führe Neustart aus...");
+                await esptool.hardReset();
+                log("Dein GIF läuft jetzt in der Endlosschleife!");
 
-        function handleFile(file) {
-            logConsole(`Selected image: ${file.name} (${(file.size / 1024).toFixed(1)} KB)...`, "info");
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const img = new Image();
-                img.onload = function() {
-                    const ctx = gifCanvas.getContext('2d');
-                    ctx.fillStyle = '#000000';
-                    ctx.fillRect(0, 0, 240, 135);
-                    ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, 240, 135);
-
-                    hasImage = true;
-                    previewContainer.classList.remove('hidden');
-                    gifInfo.textContent = `${img.width}x${img.height} → 240x135 ST7789`;
-                    updateButtons();
-                    logConsole("Image rendered onto 240x135 canvas for ST7789 display format.", "success");
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        // Full Memory Erase Action
-        eraseBtn.addEventListener('click', async () => {
-            if (!isConnected || !port) {
-                logConsole("Please connect your ESP32 board via WebSerial first!", "error");
-                return;
-            }
-
-            try {
-                setStepState(stepErase, "active");
-                logConsole("Initiating ESP32 Full Flash Memory Erase...", "warn");
-                
-                // Pulse RTS/DTR lines to enter bootloader
-                await port.setSignals({ requestToSend: true, dataTerminalReady: false });
-                await new Promise(r => setTimeout(r, 100));
-                await port.setSignals({ requestToSend: false, dataTerminalReady: true });
-                await new Promise(r => setTimeout(r, 100));
-                await port.setSignals({ requestToSend: false, dataTerminalReady: false });
-
-                logConsole("Flash memory wiped successfully! All old corrupted data cleared.", "success");
-                setStepState(stepErase, "done");
-            } catch (err) {
-                logConsole(`Erase failed: ${err.message}`, "error");
-                setStepState(stepErase, "off");
-            }
-        });
-
-        // Flash GIF Payload
-        flashBtn.addEventListener('click', async () => {
-            if (!isConnected || !hasImage) return;
-
-            try {
-                setStepState(stepWrite, "active");
-                logConsole("Preparing ST7789 display payload...", "info");
-                
-                let progress = 0;
-                const interval = setInterval(() => {
-                    progress += 10;
-                    progressBar.style.width = `${progress}%`;
-                    progressPercent.textContent = `${progress}%`;
-
-                    if (progress >= 100) {
-                        clearInterval(interval);
-                        setStepState(stepWrite, "done");
-                        setStepState(stepBoot, "done");
-                        logConsole("Firmware payload written to ESP32 flash memory at 0x10000!", "success");
-                        logConsole("Auto-booting TTGO T-Display... Your GIF is now running in an infinite loop!", "success");
-                    }
-                }, 150);
-
-            } catch (err) {
-                logConsole(`Flashing error: ${err.message}`, "error");
-                setStepState(stepWrite, "off");
-            }
-        });
-
-        function updateButtons() {
-            if (isConnected && hasImage) {
+            } catch (e) {
+                log("Fehler beim Flashen: " + e.message);
+            } finally {
                 flashBtn.disabled = false;
-                flashBtn.className = "w-full py-3.5 px-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm rounded-lg transition-all shadow-lg shadow-cyan-500/20 active:scale-98 cursor-pointer flex items-center justify-center space-x-2";
-                flashBtnText.textContent = "Flash GIF Payload to TTGO T-Display";
-            } else {
-                flashBtn.disabled = true;
-                flashBtn.className = "w-full py-3.5 px-4 bg-slate-800 text-slate-500 font-bold text-sm rounded-lg transition-all flex items-center justify-center space-x-2 cursor-not-allowed";
-                if (!isConnected && !hasImage) flashBtnText.textContent = "Connect ESP32 & Select GIF First";
-                else if (!isConnected) flashBtnText.textContent = "Connect ESP32 Board";
-                else flashBtnText.textContent = "Select a GIF File";
             }
-        }
+        });
     </script>
 </body>
 </html>
