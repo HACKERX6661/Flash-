@@ -3,11 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>TTGO T-Display GIF Studio</title>
-    <script type="module">
-        import { ESPLoader, Transport } from "https://unpkg.com/esptool-js@0.4.3/lib/index.js";
-        window.ESPLoader = ESPLoader;
-        window.Transport = Transport;
-    </script>
+    <!-- Offizieller Standalone Build von ESPTool (funktioniert garantiert ohne Import-Errors) -->
+    <script src="https://cdn.jsdelivr.net/npm/esptool-js@0.4.3/bundle.js"></script>
     <style>
         body { background: #0f172a; color: #f8fafc; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
         .card { background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 450px; text-align: center; }
@@ -49,14 +46,18 @@
 
         connectBtn.addEventListener('click', async () => {
             try {
-                if (!window.ESPLoader || !window.Transport) {
-                    throw new Error("Library lädt noch... Bitte 2 Sekunden warten und erneut klicken.");
+                // Das jsDelivr Bundle stellt 'esptooljs' global bereit
+                const ESPLoader = window.esptooljs ? window.esptooljs.ESPLoader : window.ESPLoader;
+                const Transport = window.esptooljs ? window.esptooljs.Transport : window.Transport;
+
+                if (!ESPLoader || !Transport) {
+                    throw new Error("ESPTool konnte nicht geladen werden. Prüfe die Internetverbindung.");
                 }
 
                 port = await navigator.serial.requestPort();
-                transport = new window.Transport(port);
+                transport = new Transport(port);
                 
-                esptool = new window.ESPLoader({
+                esptool = new ESPLoader({
                     transport: transport,
                     baudrate: 921600,
                     romBaudrate: 115200,
@@ -95,7 +96,8 @@
             try {
                 log("=== Starte Flash-Prozess ===");
                 
-                log("Lösche gesamten Flash-Speicher...");
+                // Speicher komplett löschen
+                log("Lösche gesamten Flash-Speicher (entfernt WLAN-Daten)...");
                 await esptool.eraseFlash();
                 log("Speicher vollständig gelöscht!");
 
