@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>TTGO T-Display GIF Studio</title>
-    <!-- Offizieller Standalone Build von ESPTool (funktioniert garantiert ohne Import-Errors) -->
-    <script src="https://cdn.jsdelivr.net/npm/esptool-js@0.4.3/bundle.js"></script>
+    <!-- Zuverlässiger CDN-Pfad für das esptool-js Bundle -->
+    <script src="https://unpkg.com/esptool-js@0.5.2/bundle.js"></script>
     <style>
         body { background: #0f172a; color: #f8fafc; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
         .card { background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 450px; text-align: center; }
@@ -46,12 +46,9 @@
 
         connectBtn.addEventListener('click', async () => {
             try {
-                // Das jsDelivr Bundle stellt 'esptooljs' global bereit
-                const ESPLoader = window.esptooljs ? window.esptooljs.ESPLoader : window.ESPLoader;
-                const Transport = window.esptooljs ? window.esptooljs.Transport : window.Transport;
-
-                if (!ESPLoader || !Transport) {
-                    throw new Error("ESPTool konnte nicht geladen werden. Prüfe die Internetverbindung.");
+                // Zugriff auf das globale Objekt von esptool-js v0.5.2
+                if (typeof ESPLoader === 'undefined' || typeof Transport === 'undefined') {
+                    throw new Error("Bibliothek lädt noch. Bitte kurz neu laden.");
                 }
 
                 port = await navigator.serial.requestPort();
@@ -96,7 +93,6 @@
             try {
                 log("=== Starte Flash-Prozess ===");
                 
-                // Speicher komplett löschen
                 log("Lösche gesamten Flash-Speicher (entfernt WLAN-Daten)...");
                 await esptool.eraseFlash();
                 log("Speicher vollständig gelöscht!");
